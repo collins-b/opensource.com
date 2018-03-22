@@ -11,7 +11,7 @@ FABRIC="$MARCH-$VERSION"
 BIN="$ARCH-$VERSION"
 SLEEP_TIMEOUT=10
 
-ORG_DOMAIN="example.domain.com"
+ORG_DOMAIN="org1.example.com"
 
 if [ ! "$(docker images | grep hyperledger/fabric )" ]; then
  docker pull hyperledger/fabric-peer:$FABRIC
@@ -21,11 +21,11 @@ if [ ! "$(docker images | grep hyperledger/fabric )" ]; then
  docker pull hyperledger/fabric-couchdb:$FABRIC
 fi
 
-curl https://nexus.hyperledger.org/content/repositories/releases/org/hyperledger/fabric/hyperledger-fabric/${BIN}/hyperledger-fabric-${BIN}.tar.gz | tar xz
+if [ ! -d "bin"]; then
+    curl https://nexus.hyperledger.org/content/repositories/releases/org/hyperledger/fabric/hyperledger-fabric/${BIN}/hyperledger-fabric-${BIN}.tar.gz | tar xz
+fi
 
 sleep $SLEEP_TIMEOUT
-
-[[ $(ls -A $HOME/.composer-credentials/) ]] && rm $HOME/.composer-credentials/* || echo "All good, no old credentials found."
 
 ./bin/cryptogen generate --config=./crypto-config.yaml
 
@@ -46,8 +46,8 @@ OUTPUT_DIR=$PWD/channel-artifacts
 
 mkdir -p $OUTPUT_DIR
 
-./bin/configtxgen -profile LoyyalOrdererGenesis -outputBlock $OUTPUT_DIR/loyyal-genesis.block
-./bin/configtxgen -profile LoyyalChannel -outputCreateChannelTx $OUTPUT_DIR/loyyal-channel.tx -channelID loyyalchannel
+./bin/configtxgen -profile TwoOrgsOrdererGenesis -outputBlock $OUTPUT_DIR/orderer-genesis.block
+./bin/configtxgen -profile TwoOrgsChannel -outputCreateChannelTx $OUTPUT_DIR/orderer-channel.tx -channelID mychannel
 
 echo "... 🙌🏿"
   
