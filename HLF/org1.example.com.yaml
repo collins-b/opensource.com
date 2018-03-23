@@ -1,0 +1,5 @@
+
+cryptoConfigMount:
+  gitRepo:
+    repository: "https://github.com/collins-b/opensource.com.git"
+    revision: "master"

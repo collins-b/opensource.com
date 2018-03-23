@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ca
+  namespace: {{ .Release.Namespace }}
+spec:
+  loadBalancerIP: {{ .Values.ingress.addr }}
+  externalIPs:
+  - {{ .Values.ingress.addr }}
+  ports:
+  - name: "api"
+    port: 7054
+    protocol: TCP
+  selector:
+    service: {{ .Release.Name }}-ca
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  labels:
+    service: {{ .Release.Name }}-ca
+  name: {{ .Release.Name }}-ca
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    service: {{ .Release.Name }}-ca
+  template:
+    metadata:
+      labels:
+        service: {{ .Release.Name }}-ca
+      namespace: {{ .Release.Namespace }}
+    spec:
+      hostAliases:
+      - ip: "{{ .Values.fabricOrderer.addr }}"
+        hostnames:
+        - "orderer.{{ .Values.fabricOrderer.orgDomain }}"
+      containers:
+      - command:
+        - fabric-ca-server
+        - start
+        - --ca.certfile
+        - /etc/crypto-config/opensource.com/HLF/crypto-config/peerOrganizations/{{ .Values.fabricOrg.domain }}/ca/ca.{{ .Values.fabricOrg.domain }}-cert.pem
+        - --ca.keyfile
+        - /etc/crypto-config/opensource.com/HLF/crypto-config/peerOrganizations/{{ .Values.fabricOrg.domain }}/ca/{{ .Values.fabricCa.keyStoreHash }}_sk
+        - -b
+        - admin:adminpw
+        - -d
+        env:
+        - name: FABRIC_CA_HOME
+          value: /etc/hyperledger/fabric-ca-server
+        - name: FABRIC_CA_SERVER_CA_NAME
+          value: ca.{{ .Values.fabricOrg.domain }}
+        - name: CORE_LOGGING_LEVEL
+          value: DEBUG
+        image: {{ .Values.fabricCa.image }}:{{ .Values.fabricCa.tag }}
+        name: {{ .Release.Name }}-ca
+        ports:
+        - containerPort: 7054
+        volumeMounts:
+        - mountPath: /etc/crypto-config
+          name: {{ .Release.Name }}-crypto-config
+          readOnly: true
+      volumes:
+      - name: {{ .Release.Name }}-crypto-config
+{{ toYaml .Values.cryptoConfigMount | indent 8 }}

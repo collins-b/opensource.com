@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orderer
+  namespace: {{ .Release.Namespace }}
+
+spec:
+  loadBalancerIP: {{ .Values.ingress.addr }}
+  externalIPs:
+  - {{ .Values.ingress.addr }}
+  ports:
+  - port: 7050
+    protocol: TCP
+  selector:
+    service: {{ .Release.Name }}-orderer
+  type: LoadBalancer
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  labels:
+    service: {{ .Release.Name }}-orderer
+  namespace: {{ .Release.Namespace }}
+  name: {{ .Release.Name }}-orderer
+spec:
+  replicas: {{ .Values.fabricOrderer.replicas }}
+  serviceName: orderer
+  template:
+    metadata:
+      labels:
+        service: {{ .Release.Name }}-orderer
+      namespace: {{ .Release.Namespace }}
+    spec:
+      hostAliases:
+      - ip: "{{ .Values.fabricOrderer.addr }}"
+        hostnames:
+        - "orderer.{{ .Values.fabricOrderer.orgDomain }}"
+      containers:
+      - command:
+        - orderer
+        image: {{ .Values.fabricOrderer.image }}:{{ .Values.fabricOrderer.tag }}
+        name: {{ .Release.Name }}-orderer
+        workingDir: /opt/gopath/src/github.com/hyperledger/fabric
+        ports:
+        - containerPort: 7050
+        env:
+        - name: GODEBUG
+          value: netdns=go+1
+        - name: ORDERER_GENERAL_LOGLEVEL
+          value: debug
+        - name: ORDERER_GENERAL_LISTENADDRESS
+          value: 0.0.0.0
+        - name: ORDERER_GENERAL_GENESISMETHOD
+          value: file
+        - name: ORDERER_GENERAL_GENESISFILE
+          value:  /etc/crypto-config/opensource.com/HLF/channel-artifacts/orderer-genesis.block
+        - name: ORDERER_GENERAL_LOCALMSPID
+          value: {{ .Values.fabricOrderer.msp }}
+        - name: ORDERER_GENERAL_LOCALMSPDIR
+          value: /etc/crypto-config/opensource.com/HLF/crypto-config/ordererOrganizations/{{ .Values.fabricOrderer.orgDomain }}/orderers/orderer.{{ .Values.fabricOrderer.orgDomain }}/msp
+        {{  if eq .Values.fabricOrderer.consensusType "kafka" }}
+        - name: ORDERER_KAFKA_VERBOSE
+          value: "true"
+        {{- end }}
+        volumeMounts:
+          - mountPath: /var/run/docker.sock
+            name: {{ .Release.Name }}-docker-sock
+          - mountPath: /etc/crypto-config
+            name: {{ .Release.Name }}-crypto-config
+            readOnly: true
+          - mountPath: /var/hyperledger/production
+            name: orderer-datadir
+      volumes:
+      - name: {{ .Release.Name }}-docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+      - name: {{ .Release.Name }}-crypto-config
+{{ toYaml .Values.cryptoConfigMount | indent 8 }}
+        
+  volumeClaimTemplates:
+  - metadata:
+      name: orderer-datadir
+      namespace: {{ .Values.namespace }}
+    spec:
+      storageClassName: standard
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 8Gi
+          memory: 1Gi
