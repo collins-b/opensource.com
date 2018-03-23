@@ -19,13 +19,17 @@ fabricOrderer:
   image: hyperledger/fabric-orderer
   tag: *fabricTag
   orgDomain: example.com
-  msp: Org1MSP
   consensusType: solo
+  msp: OrdererMSP
 fabricOrg:
   domain: org1.example.com
+  msp: Org1MSP
 fabricCa:
   keyStoreHash: c4d6886fb9125ae7c69acbfcb965eeed7b7d39c0ce65293b369175aa3635cdaf
   image: hyperledger/fabric-ca
+  tag: *fabricTag
+fabricPeer:
+  image: hyperledger/fabric-peer
   tag: *fabricTag
 ingress:
   enabled: false

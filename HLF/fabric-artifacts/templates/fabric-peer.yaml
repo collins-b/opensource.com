@@ -1,0 +1,100 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: peer0
+  namespace: {{ .Values.namespace }}
+spec:
+  loadBalancerIP: {{ .Values.ingress.addr }}
+  externalIPs:
+  - {{ .Values.ingress.addr }}
+  ports:
+  - name: "requests"
+    port: 7051
+    protocol: TCP
+  - name: "events"
+    port: 7053
+    protocol: TCP
+  selector:
+    service: {{ .Release.Name }}-peer0
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  labels:
+    service: {{ .Release.Name }}-peer0
+  name: {{ .Release.Name }}-peer0
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    service: {{ .Release.Name }}-peer0
+  template:
+    metadata:
+      labels:
+        service: {{ .Release.Name }}-peer0
+      namespace: {{ .Values.namespace }}
+    spec:
+      hostAliases:
+      - ip: "{{ .Values.fabricOrderer.addr }}"
+        hostnames:
+        - "orderer.{{ .Values.fabricOrderer.orgDomain }}"
+      containers:
+      - command:
+        - peer
+        - node
+        - start
+        - --peer-defaultchain=false
+        env:
+        - name: CORE_VM_ENDPOINT
+          value: unix:///var/run/docker.sock
+        - name: CORE_LOGGING_LEVEL
+          value: DEBUG
+        - name: CORE_PEER_ID
+          value: peer0.{{ .Values.fabricOrg.domain }}
+        - name: CORE_PEER_ADDRESS
+          value: {{ .Values.ingress.addr }}:7051  # DO NOT use 0.0.0.0 for regular setting
+        - name: CORE_PEER_GOSSIP_EXTERNALENDPOINT
+          value: {{ .Values.ingress.addr }}:7051
+        - name: CORE_PEER_MSPCONFIGPATH
+          value: /etc/crypto-config/opensource.com/HLF/crypto-config/peerOrganizations/{{ .Values.fabricOrg.domain }}/peers/peer0.{{ .Values.fabricOrg.domain }}/msp
+        - name: CORE_PEER_LOCALMSPID
+          value: {{ .Values.fabricOrg.msp }}
+        image: {{ .Values.fabricPeer.image }}:{{ .Values.fabricPeer.tag }}
+        name: {{ .Release.Name }}-peer0
+        workingDir: /opt/gopath/src/github.com/hyperledger/fabric
+        ports:
+        - containerPort: 7051
+        - containerPort: 7053
+        volumeMounts:
+        - mountPath: /var/run/docker.sock
+          name: {{ .Release.Name }}-docker-sock
+        - mountPath: /etc/crypto-config
+          name: {{ .Release.Name }}-crypto-config
+          readOnly: true
+        - mountPath: /var/hyperledger/production
+          name: {{ .Release.Name }}-fabric
+      volumes:
+      - name: {{ .Release.Name }}-docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+      - name: {{ .Release.Name }}-fabric
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-peer0-pvc
+      - name: {{ .Release.Name }}-crypto-config
+{{ toYaml .Values.cryptoConfigMount | indent 8 }}
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}-peer0-pvc
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Release.Name }}-peer0-pvc
+spec:
+  storageClassName: standard
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
