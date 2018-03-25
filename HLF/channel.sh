@@ -1,9 +1,4 @@
-
-
-
-
-
-
+#!/bin/sh
 export GENESIS_BLOCK=/etc/crypto-config/opensource.com/HLF/channel-artifacts/orderer-channel.tx
 export POD_ID=`kubectl get pod | grep peer0 | cut -f1 -d' '`
 export ORDERER_ADDR="192.168.99.100"
