@@ -1,4 +1,5 @@
 
+#note: modify repository and revison accordingly.
 cryptoConfigMount:
   gitRepo:
     repository: "https://github.com/collins-b/opensource.com.git"

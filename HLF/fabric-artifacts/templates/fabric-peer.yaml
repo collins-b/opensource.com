@@ -53,7 +53,7 @@ spec:
         - name: CORE_PEER_ID
           value: peer0.{{ .Values.fabricOrg.domain }}
         - name: CORE_PEER_ADDRESS
-          value: {{ .Values.ingress.addr }}:7051  # DO NOT use 0.0.0.0 for regular setting
+          value: {{ .Values.ingress.addr }}:7051
         - name: CORE_PEER_GOSSIP_EXTERNALENDPOINT
           value: {{ .Values.ingress.addr }}:7051
         - name: CORE_PEER_MSPCONFIGPATH
